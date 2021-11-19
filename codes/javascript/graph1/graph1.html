@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<script type="text/javascript" src="lib/d3.v5.min.js"></script>
+<script type="text/javascript" src="lib/d3-tip.min.js"></script>
+<style>
+    body {
+            font: 12px sans-serif;
+        }
+    .d3-tip {
+            background: black;
+            color: white;
+            padding: 12px;
+            border-radius: 2px;
+        }
+
+/* add style stuff here like node size and link size*/
+
+</style>
+<head>
+<title></title></head>
+<body>
+
+Select region: <select id="regionDropdown" name="region"></select><br>
+<label for="winrate">Input minimum win rate for champion pair (0-100%):</label>
+<input type="number" id="winrate" name="winrate" list="defaultWinrates" min="0" max="100" step="0.5" value="0"><br>
+Select minimum confidence for champion pair: <select id="confDropdown" name="conf"></select>
+
+<datalist id="defaultWinrates">
+    <option value="45">
+    <option value="47.5">
+    <option value="50">
+    <option value="52.5">
+    <option value="55">
+</datalist>
+
+<div id="graph"></div>
+<script>
+
+var width = window.innerWidth - 30, height = window.innerHeight - 80;
+var svg = d3.select("body").append("svg")
+                .attr("width", width)
+                .attr("height", height);
+
+// initiate tooltip for node
+var node_tip = d3.tip()
+                    .attr('class', 'd3-tip')
+                    .attr("id", "node_tooltip")
+                    .offset([-10,0]);
+
+var link_tip = d3.tip()
+                    .attr('class', 'd3-tip')
+                    .attr("id", "link_tooltip")
+                    .offset([-10,0]);
+
+var region_list = document.getElementById("regionDropdown");
+var conf_list = document.getElementById("confDropdown");
+
+// region dropdown
+var regionDropdown_dict = {
+  0: ["All Regions","all"],
+  1: ["EUN1 - Europe Nordic & East","eun1"],
+  2: ["EUW1 - Europe West","euw1"],
+  3: ["JP1 - Japan","jp1"],
+  4: ["KR - Korea","kr"],
+  5: ["NA1 - North America","na1"]
+};
+
+// confidence dropdown
+var confDropdown_dict = {
+  0: ["5%",5],
+  1: ["8%",8],
+  2: ["10%",10],
+  3: ["12%",12],
+  4: ["15%",15]
+};
+
+
+// length of region and confidence dropdown objects
+var regionLength = Object.keys(regionDropdown_dict).length
+var confLength = Object.keys(confDropdown_dict).length
+
+for (i=0;i<regionLength;i++) {
+    region_list.options[i] = new Option(regionDropdown_dict[i][0]);
+};
+
+for (i=0;i<confLength;i++) {
+    conf_list.options[i] = new Option(confDropdown_dict[i][0]);
+};
+
+var select = document.querySelectorAll("select");
+
+var region_index = 0; 
+var conf_index = 2; // set default confidence index
+select[1].selectedIndex = conf_index; // select default index to begin graph
+
+var winrateInput = document.getElementById("winrate") // get winrate input element
+var winrate_filter = parseFloat(winrateInput.value) // default winrate; get winrate input value and parse to float
+
+// listener for region dropdown
+select[0].addEventListener("change", function(event) {
+    region_index = event.target.selectedIndex;
+    console.log("region select "+region_index )
+    draw_graph(region_index,conf_index,winrate_filter)
+})
+
+// listener for confidence dropdown
+select[1].addEventListener("change", function(event) {
+    conf_index = event.target.selectedIndex;
+    console.log("conf select "+conf_index )
+    draw_graph(region_index,conf_index,winrate_filter)
+})
+
+// listener for winrate input
+winrateInput.addEventListener("change", function(event) {
+    winrate_filter = event.target.value;
+    console.log("winrate input: "+winrate_filter.toString())
+    draw_graph(region_index,conf_index,winrate_filter)
+})
+
+function draw_graph(region_index,conf_index,winrate_filter) {
+
+    var file = regionDropdown_dict[region_index][1];
+
+    Promise.all([
+                d3.dsv(",", "data/edges_"+file+"_0.1_5.csv", function(d) {
+                return {
+                    source: d.source,
+                    target: d.target,
+                    conf: +parseFloat(d["conf"]),
+                    win_rate: +parseFloat(d['win_rate'])
+                }
+                }), 
+                d3.dsv(",", "data/nodes_"+file+"_0.1_5.csv", function(d) {
+                return {
+                    champion: d.champion,
+                    popularity: +parseFloat(d['popularity'])
+                }
+            })
+            ]).then(
+                function(data) {
+                
+                //wipe out previous chart
+                svg.selectAll("*").remove();
+                
+                svg.append("text")
+                        .text("Champion pair analysis for "+regionDropdown_dict[region_index][0]+", "+">"+winrate_filter.toString()+"% win rate,"+" >"+confDropdown_dict[conf_index][0]+" confidence.")
+                        .attr("x",5)
+                        .attr("y",20)
+
+                links = data[0]
+                console.log("# of edges before filter: "+links.length)
+                links = links.filter(function(d) {
+                    return (d['conf'] >= confDropdown_dict[conf_index][1]) && (d['win_rate'] >= winrate_filter/100)
+                })
+                console.log("# of edges after filter: "+links.length)
+
+                nodes = data[1]
+                console.log("# of nodes before filter: "+nodes.length)
+                champion_set = new Set();
+                for (i=0;i<links.length;i++) {
+                    champion_set.add(links[i]['source']);
+                    champion_set.add(links[i]['target'])
+                }
+                nodes = nodes.filter(function(d) {
+                    return champion_set.has(d['champion'])
+                })
+                console.log("# of nodes after filter: "+nodes.length)
+                // at this point the links and nodes are loaded
+
+                // define some settings here, like when to change colors, opacity ranges etc.
+                var winrate_range = [d3.min(links, d => d.win_rate), d3.max(links, d => d.win_rate)];
+                var popularity_range = [d3.min(nodes, d => d.popularity), d3.max(nodes, d => d.popularity)]
+                var conf_range = [d3.min(links, d => d.conf), d3.max(links, d => d.conf)]
+                
+
+                // define linear scales for opacity, etc
+                var popularity_scale = d3.scaleLinear().domain(popularity_range).range([0.2,1]); // for node opacity
+                var popularity_scale2 = d3.scaleLinear().domain(popularity_range).range([10,20]); // for node radius
+                var conf_scale = d3.scaleQuantize().domain(conf_range).range(["6,3", "12,3", "18,3", "24,3"]); // for edge stroke dasharray
+                var conf_scale2 = d3.scaleLinear().domain(conf_range).range([8,16]); // for edge stroke width
+
+                // define diverging color scale for edges; red-yellow-green by win rate
+                var winrate_scale = d3.scaleDiverging(d3.interpolateRdYlGn) // for edge stroke (color)
+                                    .domain([winrate_range[0],0.5,winrate_range[1]]) // centered around 0.5, 50%
+                                    .clamp(true); // clamp output color to maximum output of interpolator (i.e. red or green)
+
+                // define the force directed graph
+                var force = d3.forceSimulation()
+                .nodes(d3.values(nodes))
+                .force("link", d3.forceLink(links).id(function(d) {return d.champion}).distance(100))
+                .force('center', d3.forceCenter(width / 2, height / 2))
+                .force("x", d3.forceX())
+                .force("y", d3.forceY())
+                .force("charge", d3.forceManyBody().strength(-400))
+                .alphaTarget(1)
+                .on("tick", tick);
+
+                // create timer and stop force simulation after some time to avoid jitter
+                // once things are finished moving mostly
+                const t = d3.timer((elapsed) => {
+                    if (elapsed > 150*nodes.length) { // timer scaled off # nodes. approx 4.5sec for 30 nodes
+                        t.stop(); // stop timer
+                        force.stop(); // stop force simulation
+                        console.log("seconds elapsed before stopping force simulation: "+(elapsed/1000).toPrecision(4))
+                    }
+                });
+                
+                svg.call(link_tip)
+                link_tip.html(function(d) {
+ 
+                return d.source.champion + " ==> "+ d.target.champion +"<br>" + 
+                        "Confidence: " + d.conf.toFixed(1) + "%<br>" +
+                        "Win Rate " + (d.win_rate*100).toFixed(1) + "%";
+                });
+                
+
+                // define arrow markers for end of links 
+                svg.append("defs").selectAll("marker")
+                    .data(["end"])      // Different link/path types can be defined here
+                    .enter().append("marker")    // This section adds in the arrows
+                    .attr("id", String)
+                    .attr("viewBox", "0 -5 10 10")
+                    .attr("refX", 23)
+                    .attr("refY", -2.5)
+                    .attr("markerWidth", 1.5)
+                    .attr("markerHeight", 1.5)
+                    .attr("orient", "auto")
+                    .append("path")
+                    .attr("d", "M0,-5L10,0L0,5")
+                    .attr("stroke","purple")
+                    .attr("fill", "purple")
+                    .attr("opacity", 0.8);
+
+                // draw the links, color depends on winrate ("scale" defined above) and opacity on conf
+                var path = svg.append("g")
+                    .selectAll("path")
+                    .data(links)
+                    .enter()
+                    .append("path")
+                    .attr("stroke-width", function(d) {return conf_scale2(d.conf)})
+                    .attr("stroke", function(d) {return winrate_scale(d.win_rate)})
+                    .attr("fill", "none")
+                    //.attr("stroke-dasharray", function(d) {return conf_scale(d.conf)})
+                    //.attr("opacity", function(d) {return conf_scale(d.conf)}) // commented out to try stroke width as a function of conf
+                    .attr("marker-end", "url(#end)")
+                    .on('mouseover', link_tip.show)
+                    .on('mouseout',link_tip.hide);
+
+
+                svg.call(node_tip)
+                node_tip.html(function(d) {
+
+                return "Champion: " + d.champion + "<br>" + 
+                        "Popularity: " + (d.popularity*100).toFixed(1) + "%";
+                });
+
+                var node = svg.selectAll(".node")
+                    .data(force.nodes())
+                    .enter().append("g")
+                    .attr("class", "node")
+                    .call(d3.drag()
+                    .on("start", dragstarted)
+                    .on("drag", dragged)
+                    .on("end", dragended))
+                    .on('dblclick', function(d) {
+                        d.fx = null
+                        d.fy = null
+                        d3.select(this)
+                        .attr("fixed", "false")
+                    })
+                    .on('mouseover', node_tip.show)
+                    .on('mouseout',node_tip.hide);
+                
+                // draw the node, opacity depends on popularity
+                node.append("circle")
+                    .attr("id", function(d){
+                    return (d.champion);
+                    })
+                    .attr("r", function(d){return popularity_scale2(d.popularity)})
+                    .style("fill", "black")
+                    .attr("opacity", function(d){return popularity_scale(d.popularity)});
+
+
+                // add champion name around node
+                node.append("text")
+                    .text(function(d){
+                    return (d.champion);
+                    })
+                    .attr("transform", "translate(8,-15)")
+                    .style("font-weight", "bold");
+    
+    
+                // add the curvy lines
+                function tick() {
+                    path.attr("d", function(d) {
+                        var dx = (d.target.x - d.source.x), 
+                            dy = (d.target.y - d.source.y), 
+                            dr = Math.sqrt(dx * dx + dy * dy);
+                        return "M" +
+                            d.source.x + "," +
+                            d.source.y + "A" +
+                            dr + "," + dr + " 0 0,1 " +
+                            d.target.x + "," +
+                            d.target.y;
+                    });
+
+                    node.attr("transform", function(d) {
+                        return "translate(" + d.x + "," + d.y + ")"; 
+                    });
+                };
+
+                function dragstarted(d) {
+                    if (!d3.event.active) force.alphaTarget(0.3).restart();
+                    d.fx = d.x;
+                    d.fy = d.y;
+                };
+
+                function dragged(d) {
+                    d.fx = d3.event.x;
+                    d.fy = d3.event.y;
+                };
+
+                function dragended(d) {
+                    if (!d3.event.active) force.alphaTarget(0);
+                    d.fixed = true
+                    if (d.fixed == true) {
+                        d.fx = d.x;
+                        d.fy = d.y;
+                    }
+                    else {
+                        d.fx = null;
+                        d.fy = null;
+                    }
+                };
+
+
+                            }).catch(function(error) {
+                console.log(error)});
+
+}
+
+draw_graph(region_index,conf_index,winrate_filter);
+
+</script>
+</body>
+</html>

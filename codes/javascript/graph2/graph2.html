@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+
+<style>
+    .links line {
+        stroke: #999;
+        stroke-opacity: 0.6;
+    }
+</style>
+
+<head>
+    <title> Graph 2</title>
+    <script src="d3/d3.min.js"></script>
+    <script src="https://d3js.org/d3.v5.min.js"></script>
+</head>
+
+<body>
+    Select region: <select id="regionDropdown" name="region"></select><br>
+
+    <script>
+        
+
+        // to open this html file, use npm or python -m http.server.8000 
+        // if D3 lib zip doesn't work, re-download D3.v5 here
+        // link to download D3.V5: https://drive.google.com/file/d/1n4rGH2168CLjt05UBceFk8gQIxRk0N7K/view?usp=sharing
+
+
+        Promise.all([
+
+            // All edges imported first then edges -> files[0]-files[5]
+            //
+            // files [0] : edges_eun1
+            // files [1] : edges_euw1
+            // files [2] : edges_jp1
+            // files [3] : edges_kr
+            // files [4] : edges_na1
+            // files [5] : edges_all
+            // files [6] : nodes_eun1
+            // files [7] : nodes_euw1
+            // files [8] : nodes_jp1
+            // files [9] : nodes_kr
+            // files [10] : nodes_na1
+            // files [11] : nodes_all
+
+            d3.dsv(",", "data/edges_eun1.csv", function (d) {
+                return {
+                    source: d.source,
+                    target: d.target,
+                    value: +d.value
+                }
+            }),
+            d3.dsv(",", "data/edges_euw1.csv", function (d) {
+                return {
+                    source: d.source,
+                    target: d.target,
+                    value: +d.value
+                }
+            }),
+            d3.dsv(",", "data/edges_jp1.csv", function (d) {
+                return {
+                    source: d.source,
+                    target: d.target,
+                    value: +d.value
+                }
+            }),
+            d3.dsv(",", "data/edges_kr.csv", function (d) {
+                return {
+                    source: d.source,
+                    target: d.target,
+                    value: +d.value
+                }
+            }),
+            d3.dsv(",", "data/edges_na1.csv", function (d) {
+                return {
+                    source: d.source,
+                    target: d.target,
+                    value: +d.value
+                }
+            }),
+            // uncomment when edges_all.csv is ready
+            // uploaded
+            d3.dsv(",", "data/edges_all.csv", function (d) {
+                return {
+                    source: d.source,
+                    target: d.target,
+                    value: +d.value
+                }
+            }),
+
+            d3.dsv(",", "data/nodes_eun1.csv", function (d) {
+                return {
+                    id: d.id,
+                    group: +d.group
+                }
+            }),
+            d3.dsv(",", "data/nodes_euw1.csv", function (d) {
+                return {
+                    id: d.id,
+                    group: +d.group
+                }
+            }),
+            d3.dsv(",", "data/nodes_jp1.csv", function (d) {
+                return {
+                    id: d.id,
+                    group: +d.group
+                }
+            }),
+            d3.dsv(",", "data/nodes_kr.csv", function (d) {
+                return {
+                    id: d.id,
+                    group: +d.group
+                }
+            }),
+            d3.dsv(",", "data/nodes_na1.csv", function (d) {
+                return {
+                    id: d.id,
+                    group: +d.group
+                }
+            }),
+            // uncomment when nodes_all.csv is ready
+            // uploaded on the repo
+            d3.dsv(",", "data/nodes_all.csv", function (d) {
+                return {
+                    id: d.id,
+                    group: +d.group
+                }
+            })
+
+        ]).then(function (files) {
+
+            var width = 1300,
+                height = 700;
+
+            var svg = d3.select("body").append("svg")
+                .attr("width", width)
+                .attr("height", height)
+
+            //Hyeong-sun, change the variables accordingly to make it dynamic
+            //re: Check out the graph1 file on the github repo for reference
+
+            var select = document.querySelectorAll("select");
+
+            var regionList = document.getElementById("regionDropdown");
+            var regionDropdownList = {
+                0: ["EUN1 - Europe Nordic & East", "eun1"],
+                1: ["EUW1 - Europe West", "euw1"],
+                2: ["JP1 - Japan", "jp1"],
+                3: ["KR - Korea", "kr"],
+                4: ["NA1 - North America", "na1"],
+                5: ["All Regions", "all"]
+            };
+
+            var regionIndex = 0
+
+            var regionLength = Object.keys(regionDropdownList).length
+            for (i = 0; i < regionLength; i++) {
+                regionList.options[i] = new Option(regionDropdownList[i][0]);
+            };
+
+            select[0].addEventListener("change", function (event) {
+                regionIndex = event.target.selectedIndex;
+                svg.selectAll("*").remove()
+                update_graph(files[regionIndex], files[regionIndex + 6])
+            })
+
+            //console.log(link_eu1)
+            //console.log(node_eu1)
+
+            //would be nice to do:
+            //make this dynamic according to user window
+            //starter:
+            //var margin = {top:50, right:50, bottom:50, left:50},
+            //              width = window.innerWidth - margin.left - margin.right,
+            //              height = window.innerHeight - margin.top - margin.bottom
+            //note: will have to scale according to user window size, may have to change strength value in force function
+            //re: fixna function that is called within the translate function
+
+            update_graph(files[regionIndex], files[regionIndex + 6])
+
+            //function update_graph(selectedEdgeData, selectedNodeData) {
+            // going to have to change this due to > 10 groups 
+
+
+            function update_graph(selectedEdgeData, selectedNodeData) {
+
+                var color = d3.scaleSequential()
+                    .domain([0, d3.max(d3.values(selectedNodeData), function (d) { return d.group; })])
+                    .interpolator(d3.interpolateSpectral);
+
+
+                var force = d3.forceSimulation()
+                    .nodes(d3.values(selectedNodeData))
+                    .force("link", d3.forceLink(selectedEdgeData).id(function (d) { return d.id; }).distance(100).strength(1))
+                    .force("center", d3.forceCenter(width / 2, height / 2))
+                    .force("x", d3.forceX())
+                    .force("y", d3.forceY())
+                    .force("charge", d3.forceManyBody().strength(-50))
+                    .alphaTarget(1)
+                    .on("tick", ticked);
+                
+                var link = svg.append("g")
+                    .attr("class", "links")
+                    .selectAll("line")
+                    .data(selectedEdgeData)
+                    .enter()
+                    .append("line")
+                    .attr("stroke", "#aaa")
+                    .attr("stroke-width", "1");
+                
+                var node = svg.selectAll(".node")
+                    .data(force.nodes())
+                    .enter().append("g")
+                    .attr("class", "node")
+                    .call(
+                        d3.drag()
+                            .on("start", dragstarted)
+                            .on("drag", dragged)
+                            .on("end", dragended)
+                    );
+
+                // I'm changing this to be more dynamic.
+                //var node = svg.append("g")
+                //    .attr("class", "nodes")
+                //    .selectAll("g")
+                //    .data(selectedData)
+                //    .enter()
+                //    .append("circle")
+                //    .attr("r", 7)
+                //    .attr("fill", function (d) { return color(d.group); })
+                //    .call(
+                //        d3.drag()
+                //            .on("start", dragstarted)
+                //            .on("drag", dragged)
+                //            .on("end", dragended)
+                //    );
+
+
+                node.append("circle")
+                    .attr("id", function (d) { return (d.id); })
+                    .attr("r", 7)
+                    .attr("fill", function (d) { return color(d.group); });
+
+                node.append("text")
+                    .text(function (d) {
+                        return (d.id);
+                    })
+                    .attr("transform", "translate(0,-10)")
+                    .style("font-weight", "bold");
+
+
+                function ticked() {
+
+                    link
+                        .attr("x1", function (d) { return d.source.x; })
+                        .attr("y1", function (d) { return d.source.y; })
+                        .attr("x2", function (d) { return d.target.x; })
+                        .attr("y2", function (d) { return d.target.y; });
+                    node
+                        .attr("transform", function (d) {
+                            return "translate(" + d.x + "," + d.y + ")";
+                        });
+                }
+
+
+                function dragstarted(d) {
+                    if (!d3.event.active) force.alphaTarget(0.3).restart();
+                    d.fx = d.x;
+                    d.fy = d.y;
+                }
+
+                function dragged(d) {
+
+                    //d3.select(this).select(".circle")
+                    //d3.select(this)
+                    //    .attr("r", 20)
+                    d.fx = d3.event.x;
+                    d.fy = d3.event.y;
+
+                }
+
+                function dragended(d) {
+                    if (!d3.event.active) force.alphaTarget(0);
+                }
+                // don't need dynamic size change
+                function released(d) {
+                    d.fx = null;
+                    d.fy = null;
+                    //d3.select(this).select(".circle")
+                    //d3.select(this)
+                    //    .attr("r", "7");
+
+
+                }
+            }
+        }).catch(function (err) {
+            console.log(err, "Check the error message")
+        })
+
+    </script>
+
+</body>
+
+</html>

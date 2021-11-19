@@ -1,0 +1,4 @@
+1. Open anaconda prompt
+2. Navigate to folder (cd "C:\Users\josvi\Documents\GitHub\CSE-6242-Final-Project\codes\javascript\graph1")
+3. Open server (python -m http.server 8888 &.)
+4. In browser navigate to http://localhost:8888/
