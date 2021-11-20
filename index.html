@@ -12,6 +12,9 @@
             padding: 12px;
             border-radius: 2px;
         }
+    .legend {
+        fill: url(#my-cool-gradient);
+        }
 
 /* add style stuff here like node size and link size*/
 
@@ -21,6 +24,14 @@
     <h1>Visual Tool for League of Legends Champion Selection</h1>
 </head>
 <body>
+<!-- add an svg here for defining the color gradient for the legend; it does not show up on the user screen-->
+    <svg style="width:0;height:0;position:absolute;" aria-hidden="true" focusable="false">
+        <linearGradient id="my-cool-gradient" x2="0" y2="1">
+          <stop offset="0%" stop-color="rgb(165,0,38)" />
+          <stop offset="50%" stop-color="rgb(249, 247, 174)" />
+          <stop offset="100%" stop-color="rgb(0, 104, 55)" />
+        </linearGradient>
+      </svg>
 
 Select region: <select id="regionDropdown" name="region"></select><br>
 <label for="winrate">Input minimum win rate for champion pair (0-100%):</label>
@@ -194,7 +205,7 @@ function draw_graph(region_index,conf_index,winrate_filter) {
                 .force("x", d3.forceX())
                 .force("y", d3.forceY())
                 .force("charge", d3.forceManyBody().strength(-400))
-                .alphaTarget(1)
+                .alphaTarget(0.5)
                 .on("tick", tick);
 
                 // create timer and stop force simulation after some time to avoid jitter
@@ -247,6 +258,29 @@ function draw_graph(region_index,conf_index,winrate_filter) {
                     .attr("marker-end", "url(#end)")
                     .on('mouseover', link_tip.show)
                     .on('mouseout',link_tip.hide);
+                
+                // add the legend bar and text    
+                svg.append('rect')
+                    .attr('x', 10)
+                    .attr('y', 40)
+                    .attr('width', 25)
+                    .attr('height', 100)
+                    .attr("class", "legend")
+                // the minimum is at most 50% because of the color logic!
+                svg.append("text")
+                    .text("low winrate (" + String(Math.round(1000*Math.min(winrate_range[0],0.5))/10) + "%)")
+                    .attr("x", 40)
+                    .attr("y", 45)
+
+                svg.append("text")
+                    .text("medium winrate (50%)")
+                    .attr("x", 40)
+                    .attr("y", 95)
+                
+                svg.append("text")
+                    .text("high winrate (" + String(Math.round(1000*winrate_range[1])/10) + "%)")
+                    .attr("x", 40)
+                    .attr("y", 142)
 
 
                 svg.call(node_tip)
