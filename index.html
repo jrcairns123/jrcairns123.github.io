@@ -22,8 +22,20 @@
 <head>
     <title>League of Legends Champion Synergy 1</title>
     <h1>Visual Tool for League of Legends Champion Selection</h1>
+    
 </head>
 <body>
+<div style="position: absolute; top: 10px; right: 50px; height: 150px">
+    <u>Edges</u><br>
+    Edge color indicates win rate for champion pair; hover mouse over edge for more information<br>
+    Edge direction (purple triangle): A=>B means high occurence (confidence) of B chosen given A is chosen in the same team<br><br>
+    <u>Nodes</u><br>
+    Node size and opacity indicate popularity of champion (larger/darker means higher popularity)<br>
+    Hover mouse over node for more information; drag node to re-position<br><br>
+    <u>Other Features</u><br>
+    Resize graph by mouse scroll; drag to re-position<br><br>
+
+</div>
 <!-- add an svg here for defining the color gradient for the legend; it does not show up on the user screen-->
     <svg style="width:0;height:0;position:absolute;" aria-hidden="true" focusable="false">
         <linearGradient id="my-cool-gradient" x2="0" y2="1">
@@ -36,7 +48,11 @@
 Select region: <select id="regionDropdown" name="region"></select><br>
 <label for="winrate">Input minimum win rate for champion pair (0-100%):</label>
 <input type="number" id="winrate" name="winrate" list="defaultWinrates" min="0" max="100" step="0.5" value="0"><br>
-Select minimum confidence for champion pair: <select id="confDropdown" name="conf"></select>
+Select minimum confidence for champion pair: <select id="confDropdown" name="conf"></select><br>
+Select a champion to filter by:
+<select id="champion_filter" name="champion_filter">
+    <option value="None" selected>None</option>
+</select>
 
 <datalist id="defaultWinrates">
     <option value="45">
@@ -50,9 +66,14 @@ Select minimum confidence for champion pair: <select id="confDropdown" name="con
 <script>
 
 var width = window.innerWidth - 30, height = window.innerHeight - 80;
+var radius = 6;
 var svg = d3.select("body").append("svg")
                 .attr("width", width)
-                .attr("height", height);
+                .attr("height", height)
+                .call(d3.zoom().on("zoom", function () {
+                        svg.attr("transform", d3.event.transform)
+                    }))
+                    .append("g");
 
 // initiate tooltip for node
 var node_tip = d3.tip()
@@ -67,6 +88,8 @@ var link_tip = d3.tip()
 
 var region_list = document.getElementById("regionDropdown");
 var conf_list = document.getElementById("confDropdown");
+var champion_list = document.getElementById('champion_filter');
+//console.log(champion_list.value)
 
 // region dropdown
 var regionDropdown_dict = {
@@ -109,28 +132,69 @@ select[1].selectedIndex = conf_index; // select default index to begin graph
 var winrateInput = document.getElementById("winrate") // get winrate input element
 var winrate_filter = parseFloat(winrateInput.value) // default winrate; get winrate input value and parse to float
 
+var champion_filter = champion_list[champion_list.selectedIndex].value; // default champion filter selection is None - i.e. show all champions
+console.log(champion_list[champion_list.selectedIndex].value)
+
+// code to add all champions in the edges_all file to the champion filter dropdown
+Promise.all([d3.dsv(",", "data/edges_all_0.1_5.csv", function(d) {
+                return {
+                    source: d.source,
+                    target: d.target,
+                    conf: +parseFloat(d["conf"]),
+                    win_rate: +parseFloat(d['win_rate'])
+                }
+                })]).then(function(data) {
+                    var links = data[0];
+                    // get original/all champion set to populate champion filter
+                    all_champion_set = new Set();
+                    for (i=0;i<links.length;i++) {
+                        all_champion_set.add(links[i]['source']);
+                        all_champion_set.add(links[i]['target'])
+                        };
+
+                        // convert set to array and sort alphabetically
+                        all_champion_array = Array.from(all_champion_set);
+                        all_champion_array.sort();
+
+                        // get champion array length to add options to select element
+                        var champLength = all_champion_array.length
+
+                        // for each champion/node, create a new option in the champion filter select options
+                        for (i=0;i<champLength;i++) {
+                            champion_list.options[i+1] = new Option(all_champion_array[i]);
+                            };
+                    });
+
+
 // listener for region dropdown
 select[0].addEventListener("change", function(event) {
     region_index = event.target.selectedIndex;
     console.log("region select "+region_index )
-    draw_graph(region_index,conf_index,winrate_filter)
+    draw_graph(region_index,conf_index,winrate_filter,champion_filter)
 })
 
 // listener for confidence dropdown
 select[1].addEventListener("change", function(event) {
     conf_index = event.target.selectedIndex;
     console.log("conf select "+conf_index )
-    draw_graph(region_index,conf_index,winrate_filter)
+    draw_graph(region_index,conf_index,winrate_filter,champion_filter)
 })
 
 // listener for winrate input
 winrateInput.addEventListener("change", function(event) {
     winrate_filter = event.target.value;
     console.log("winrate input: "+winrate_filter.toString())
-    draw_graph(region_index,conf_index,winrate_filter)
+    draw_graph(region_index,conf_index,winrate_filter,champion_filter)
 })
 
-function draw_graph(region_index,conf_index,winrate_filter) {
+// listener for champion filter dropdown
+champion_list.addEventListener("change", function(event) {
+    champion_filter = event.target.value;
+    console.log("filtering on champion: "+champion_filter);
+    draw_graph(region_index,conf_index,winrate_filter,champion_filter)
+})
+
+function draw_graph(region_index,conf_index,winrate_filter,champion_filter) {
 
     var file = regionDropdown_dict[region_index][1];
 
@@ -156,14 +220,27 @@ function draw_graph(region_index,conf_index,winrate_filter) {
                 svg.selectAll("*").remove();
                 
                 svg.append("text")
-                        .text("Champion pair analysis for "+regionDropdown_dict[region_index][0]+", "+">"+winrate_filter.toString()+"% win rate,"+" >"+confDropdown_dict[conf_index][0]+" confidence.")
-                        .attr("x",5)
+                        .text("Champion pair analysis for "+regionDropdown_dict[region_index][0]+", "+">"+winrate_filter.toString()+"% win rate,"+" >"+confDropdown_dict[conf_index][0]+" confidence. Champion filter: "+champion_filter)
+                        .attr("x",0)
                         .attr("y",20)
+                        .attr("font-size","15px")
 
                 links = data[0]
                 console.log("# of edges before filter: "+links.length)
                 links = links.filter(function(d) {
-                    return (d['conf'] >= confDropdown_dict[conf_index][1]) && (d['win_rate'] >= winrate_filter/100)
+                    
+                    // use if else to check if champion filter selection is None or a valid champion
+                    // if it is not None, create boolean to determine if champion_filter is current
+                    // source or target. filter links to only include True champion filter checks
+                    if (champion_filter == "None") {
+                        var champion_filter_bool = true;
+                    }
+                    else {
+                        var champion_filter_bool = ((d['source'] == champion_filter) || 
+                        (d["target"] == champion_filter));
+                    };
+
+                    return (d['conf'] >= confDropdown_dict[conf_index][1]) && (d['win_rate'] >= winrate_filter/100 && champion_filter_bool)
                 })
                 console.log("# of edges after filter: "+links.length)
 
@@ -259,28 +336,34 @@ function draw_graph(region_index,conf_index,winrate_filter) {
                     .on('mouseover', link_tip.show)
                     .on('mouseout',link_tip.hide);
                 
-                // add the legend bar and text    
+                // add the legend bar and text
+
+                svg.append("text")
+                    .text("Edge color indicates win rate for champion pair:")
+                    .attr("x", 0)
+                    .attr("y", 50)
+
                 svg.append('rect')
                     .attr('x', 10)
-                    .attr('y', 40)
+                    .attr('y', 60)
                     .attr('width', 25)
                     .attr('height', 100)
                     .attr("class", "legend")
                 // the minimum is at most 50% because of the color logic!
                 svg.append("text")
-                    .text("low winrate (" + String(Math.round(1000*Math.min(winrate_range[0],0.5))/10) + "%)")
+                    .text("low win rate (" + String(Math.round(1000*Math.min(winrate_range[0],0.5))/10) + "%)")
                     .attr("x", 40)
-                    .attr("y", 45)
+                    .attr("y", 70)
 
                 svg.append("text")
-                    .text("medium winrate (50%)")
+                    .text("medium win rate (50%)")
                     .attr("x", 40)
-                    .attr("y", 95)
+                    .attr("y", 113)
                 
                 svg.append("text")
-                    .text("high winrate (" + String(Math.round(1000*winrate_range[1])/10) + "%)")
+                    .text("high win rate (" + String(Math.round(1000*winrate_range[1])/10) + "%)")
                     .attr("x", 40)
-                    .attr("y", 142)
+                    .attr("y", 158)
 
 
                 svg.call(node_tip)
@@ -343,6 +426,14 @@ function draw_graph(region_index,conf_index,winrate_filter) {
                     node.attr("transform", function(d) {
                         return "translate(" + d.x + "," + d.y + ")"; 
                     });
+                    
+                    //attempt to bound nodes within visible range - doesn't come out too good
+                    //node.attr("transform", function(d) {
+                    //    x = Math.max(radius, Math.min(width - radius, d.x));
+                    //    y = Math.max(radius, Math.min(height - radius, d.y))
+                    //    return "translate(" + x + "," + y + ")"; 
+                    //});
+
                 };
 
                 function dragstarted(d) {
@@ -375,7 +466,7 @@ function draw_graph(region_index,conf_index,winrate_filter) {
 
 }
 
-draw_graph(region_index,conf_index,winrate_filter);
+draw_graph(region_index,conf_index,winrate_filter,champion_filter);
 
 </script>
 </body>
