@@ -66,7 +66,7 @@ Select a champion to filter by:
 <script>
 
 var width = window.innerWidth - 30, height = window.innerHeight - 80;
-var radius = 6;
+//var radius = 6;
 var svg = d3.select("body").append("svg")
                 .attr("width", width)
                 .attr("height", height)
@@ -221,9 +221,15 @@ function draw_graph(region_index,conf_index,winrate_filter,champion_filter) {
                 svg.selectAll("*").remove();
                 
                 svg.append("text")
-                        .text("Champion pair analysis for "+regionDropdown_dict[region_index][0]+", "+">"+winrate_filter.toString()+"% win rate,"+" >"+confDropdown_dict[conf_index][0]+" confidence. Champion filter: "+champion_filter)
+                        .text("Champion pair analysis for "+regionDropdown_dict[region_index][0]+",")
                         .attr("x",0)
                         .attr("y",20)
+                        .attr("font-size","15px")
+
+                svg.append("text")
+                        .text(">"+winrate_filter.toString()+"% win rate,"+" >"+confDropdown_dict[conf_index][0]+" confidence. Champion filter: "+champion_filter)
+                        .attr("x",0)
+                        .attr("y",40)
                         .attr("font-size","15px")
 
                 links = data[0]
@@ -342,11 +348,11 @@ function draw_graph(region_index,conf_index,winrate_filter,champion_filter) {
                 svg.append("text")
                     .text("Edge color indicates win rate for champion pair:")
                     .attr("x", 0)
-                    .attr("y", 50)
+                    .attr("y", 60)
 
                 svg.append('rect')
                     .attr('x', 10)
-                    .attr('y', 60)
+                    .attr('y', 70)
                     .attr('width', 25)
                     .attr('height', 100)
                     .attr("class", "legend")
@@ -354,19 +360,62 @@ function draw_graph(region_index,conf_index,winrate_filter,champion_filter) {
                 svg.append("text")
                     .text("low win rate (" + String(Math.round(1000*Math.min(winrate_range[0],0.5))/10) + "%)")
                     .attr("x", 40)
-                    .attr("y", 70)
+                    .attr("y", 80)
 
                 svg.append("text")
                     .text("medium win rate (50%)")
                     .attr("x", 40)
-                    .attr("y", 113)
+                    .attr("y", 120)
                 
                 svg.append("text")
                     .text("high win rate (" + String(Math.round(1000*winrate_range[1])/10) + "%)")
                     .attr("x", 40)
-                    .attr("y", 158)
+                    .attr("y", 165)
 
+                svg.append("text")
+                    .text("Graph Statistics")
+                    .attr("x", 0)
+                    .attr("y", 200)
+                    .attr("text-decoration","underline")
 
+                svg.append("text")
+                    .text("# of Champion Pairs: " + links.length)
+                    .attr("x", 0)
+                    .attr("y", 230)
+
+                svg.append("text")
+                    .text("# of Champions: " + nodes.length)
+                    .attr("x", 0)
+                    .attr("y", 245)
+
+                svg.append("text")
+                    .text("Champion Pair with Highest Win Rate: ")
+                    .attr("x", 0)
+                    .attr("y", 275)
+
+                if (links.length >0){
+                    links_sorted = links.sort((a,b) => b.win_rate - a.win_rate)
+                    svg.append("text")
+                    .text(links_sorted[0].source.champion + " => " + links_sorted[0].target.champion + " (" + (links_sorted[0].win_rate*100).toFixed(1) + "%)")
+                    .attr("x", 0)
+                    .attr("y", 290)
+
+                }
+
+                svg.append("text")
+                    .text("Champion with Highest Popularity: ")
+                    .attr("x", 0)
+                    .attr("y", 320)
+
+                if (nodes.length >0){
+                    nodes_sorted = nodes.sort((a,b) => b.popularity - a.popularity)
+                    svg.append("text")
+                    .text(nodes_sorted[0].champion  + " (" + (nodes_sorted[0].popularity*100).toFixed(1) + "%)")
+                    .attr("x", 0)
+                    .attr("y", 335)
+
+                }
+                
                 svg.call(node_tip)
                 node_tip.html(function(d) {
 
