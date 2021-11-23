@@ -15,17 +15,34 @@
     .legend {
         fill: url(#my-cool-gradient);
         }
+    #title1 {
+        max-width: 55%;
+    }
+    #user-selections {
+        max-width: 55%;
+    }
+    #main-graph {
+        padding-top: 40px;
+    }
+    #text-group {
+        position: absolute;
+        left: 10;
+        padding-top: 50px;
+        width: 70%;
+        height: 70%;
+        z-index: -1;
+    }
 
 /* add style stuff here like node size and link size*/
 
 </style>
 <head>
     <title>League of Legends Champion Synergy 1</title>
-    <h1>Visual Tool for League of Legends Champion Selection</h1>
+    <h1 id="title1">Visual Tool for League of Legends Champion Selection</h1>
     
 </head>
 <body>
-<div style="position: absolute; top: 10px; right: 50px; height: 150px">
+<div style="position: absolute; left: 60%; top: 15px; height: 15%">
     <u>Edges</u><br>
     Edge color indicates win rate for champion pair; hover mouse over edge for more information<br>
     Edge direction (purple triangle): A=>B means high occurence (confidence) of B chosen given A is chosen in the same team<br><br>
@@ -34,8 +51,8 @@
     Hover mouse over node for more information; drag node to re-position<br><br>
     <u>Other Features</u><br>
     Resize graph by mouse scroll; drag to re-position<br><br>
-
 </div>
+
 <!-- add an svg here for defining the color gradient for the legend; it does not show up on the user screen-->
     <svg style="width:0;height:0;position:absolute;" aria-hidden="true" focusable="false">
         <linearGradient id="my-cool-gradient" x2="0" y2="1">
@@ -45,14 +62,16 @@
         </linearGradient>
       </svg>
 
-Select region: <select id="regionDropdown" name="region"></select><br>
-<label for="winrate">Input minimum win rate for champion pair (0-100%):</label>
-<input type="number" id="winrate" name="winrate" list="defaultWinrates" min="0" max="100" step="0.5" value="0"><br>
-Select minimum confidence for champion pair: <select id="confDropdown" name="conf"></select><br>
-Select a champion to filter by:
-<select id="champion_filter" name="champion_filter">
-    <option value="None" selected>None</option>
-</select>
+<div id="user-selections">
+    Select region: <select id="regionDropdown" name="region"></select><br>
+    <label for="winrate">Input minimum win rate for champion pair (0-100%):</label>
+    <input type="number" id="winrate" name="winrate" list="defaultWinrates" min="0" max="100" step="0.5" value="0"><br>
+    Select minimum confidence for champion pair: <select id="confDropdown" name="conf"></select><br>
+    Select a champion to filter by:
+    <select id="champion_filter" name="champion_filter">
+        <option value="None" selected>None</option>
+    </select>
+</div>
 
 <datalist id="defaultWinrates">
     <option value="45">
@@ -67,7 +86,12 @@ Select a champion to filter by:
 
 var width = window.innerWidth - 30, height = window.innerHeight - 80;
 //var radius = 6;
+
+var svg_legend = d3.select("body").append("svg")
+                .attr("id", "text-group");
+
 var svg = d3.select("body").append("svg")
+                .attr("id", "main-graph")
                 .attr("width", width)
                 .attr("height", height)
                 .call(d3.zoom().on("zoom", function () {
@@ -218,19 +242,8 @@ function draw_graph(region_index,conf_index,winrate_filter,champion_filter) {
                 function(data) {
                 
                 //wipe out previous chart
-                svg.selectAll("*").remove();
-                
-                svg.append("text")
-                        .text("Champion pair analysis for "+regionDropdown_dict[region_index][0]+",")
-                        .attr("x",0)
-                        .attr("y",20)
-                        .attr("font-size","15px")
-
-                svg.append("text")
-                        .text(">"+winrate_filter.toString()+"% win rate,"+" >"+confDropdown_dict[conf_index][0]+" confidence. Champion filter: "+champion_filter)
-                        .attr("x",0)
-                        .attr("y",40)
-                        .attr("font-size","15px")
+                svg_legend.selectAll("*").remove();
+                svg.selectAll("*").remove();               
 
                 links = data[0]
                 console.log("# of edges before filter: "+links.length)
@@ -280,6 +293,90 @@ function draw_graph(region_index,conf_index,winrate_filter,champion_filter) {
                 var winrate_scale = d3.scaleDiverging(d3.interpolateRdYlGn) // for edge stroke (color)
                                     .domain([winrate_range[0],0.5,winrate_range[1]]) // centered around 0.5, 50%
                                     .clamp(true); // clamp output color to maximum output of interpolator (i.e. red or green)
+
+                // add the legend bar and text
+                svg_legend.append("text")
+                        .text("Champion pair analysis for "+regionDropdown_dict[region_index][0]+",")
+                        .attr("x",0)
+                        .attr("y",20)
+                        .attr("font-size","15px");
+
+                svg_legend.append("text")
+                        .text(">"+winrate_filter.toString()+"% win rate,"+" >"+confDropdown_dict[conf_index][0]+" confidence. Champion filter: "+champion_filter)
+                        .attr("x",0)
+                        .attr("y",40)
+                        .attr("font-size","15px");
+
+                svg_legend.append("text")
+                    .text("Edge color indicates win rate for champion pair:")
+                    .attr("x", 0)
+                    .attr("y", 60)
+
+                svg_legend.append('rect')
+                    .attr('x', 10)
+                    .attr('y', 70)
+                    .attr('width', 25)
+                    .attr('height', 100)
+                    .attr("class", "legend")
+                // the minimum is at most 50% because of the color logic!
+                svg_legend.append("text")
+                    .text("low win rate (" + String(Math.round(1000*Math.min(winrate_range[0],0.5))/10) + "%)")
+                    .attr("x", 40)
+                    .attr("y", 80)
+
+                svg_legend.append("text")
+                    .text("medium win rate (50%)")
+                    .attr("x", 40)
+                    .attr("y", 120)
+                
+                svg_legend.append("text")
+                    .text("high win rate (" + String(Math.round(1000*winrate_range[1])/10) + "%)")
+                    .attr("x", 40)
+                    .attr("y", 165)
+
+                svg_legend.append("text")
+                    .text("Graph Statistics")
+                    .attr("x", 0)
+                    .attr("y", 200)
+                    .attr("text-decoration","underline")
+
+                svg_legend.append("text")
+                    .text("# of Champion Pairs: " + links.length)
+                    .attr("x", 0)
+                    .attr("y", 230)
+
+                svg_legend.append("text")
+                    .text("# of Champions: " + nodes.length)
+                    .attr("x", 0)
+                    .attr("y", 245)
+
+                svg_legend.append("text")
+                    .text("Champion Pair with Highest Win Rate: ")
+                    .attr("x", 0)
+                    .attr("y", 275)
+
+                if (links.length >0){
+                    links_sorted = links.sort((a,b) => b.win_rate - a.win_rate)
+                    svg_legend.append("text")
+                    .text(links_sorted[0].source.champion + " => " + links_sorted[0].target.champion + " (" + (links_sorted[0].win_rate*100).toFixed(1) + "%)")
+                    .attr("x", 0)
+                    .attr("y", 290)
+
+                }
+
+                svg_legend.append("text")
+                    .text("Champion with Highest Popularity: ")
+                    .attr("x", 0)
+                    .attr("y", 320)
+
+                if (nodes.length >0){
+                    nodes_sorted = nodes.sort((a,b) => b.popularity - a.popularity)
+                    svg_legend.append("text")
+                    .text(nodes_sorted[0].champion  + " (" + (nodes_sorted[0].popularity*100).toFixed(1) + "%)")
+                    .attr("x", 0)
+                    .attr("y", 335)
+
+                }
 
                 // define the force directed graph
                 var force = d3.forceSimulation()
@@ -342,79 +439,6 @@ function draw_graph(region_index,conf_index,winrate_filter,champion_filter) {
                     .attr("marker-end", "url(#end)")
                     .on('mouseover', link_tip.show)
                     .on('mouseout',link_tip.hide);
-                
-                // add the legend bar and text
-
-                svg.append("text")
-                    .text("Edge color indicates win rate for champion pair:")
-                    .attr("x", 0)
-                    .attr("y", 60)
-
-                svg.append('rect')
-                    .attr('x', 10)
-                    .attr('y', 70)
-                    .attr('width', 25)
-                    .attr('height', 100)
-                    .attr("class", "legend")
-                // the minimum is at most 50% because of the color logic!
-                svg.append("text")
-                    .text("low win rate (" + String(Math.round(1000*Math.min(winrate_range[0],0.5))/10) + "%)")
-                    .attr("x", 40)
-                    .attr("y", 80)
-
-                svg.append("text")
-                    .text("medium win rate (50%)")
-                    .attr("x", 40)
-                    .attr("y", 120)
-                
-                svg.append("text")
-                    .text("high win rate (" + String(Math.round(1000*winrate_range[1])/10) + "%)")
-                    .attr("x", 40)
-                    .attr("y", 165)
-
-                svg.append("text")
-                    .text("Graph Statistics")
-                    .attr("x", 0)
-                    .attr("y", 200)
-                    .attr("text-decoration","underline")
-
-                svg.append("text")
-                    .text("# of Champion Pairs: " + links.length)
-                    .attr("x", 0)
-                    .attr("y", 230)
-
-                svg.append("text")
-                    .text("# of Champions: " + nodes.length)
-                    .attr("x", 0)
-                    .attr("y", 245)
-
-                svg.append("text")
-                    .text("Champion Pair with Highest Win Rate: ")
-                    .attr("x", 0)
-                    .attr("y", 275)
-
-                if (links.length >0){
-                    links_sorted = links.sort((a,b) => b.win_rate - a.win_rate)
-                    svg.append("text")
-                    .text(links_sorted[0].source.champion + " => " + links_sorted[0].target.champion + " (" + (links_sorted[0].win_rate*100).toFixed(1) + "%)")
-                    .attr("x", 0)
-                    .attr("y", 290)
-
-                }
-
-                svg.append("text")
-                    .text("Champion with Highest Popularity: ")
-                    .attr("x", 0)
-                    .attr("y", 320)
-
-                if (nodes.length >0){
-                    nodes_sorted = nodes.sort((a,b) => b.popularity - a.popularity)
-                    svg.append("text")
-                    .text(nodes_sorted[0].champion  + " (" + (nodes_sorted[0].popularity*100).toFixed(1) + "%)")
-                    .attr("x", 0)
-                    .attr("y", 335)
-
-                }
                 
                 svg.call(node_tip)
                 node_tip.html(function(d) {
