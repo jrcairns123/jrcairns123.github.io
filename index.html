@@ -4,7 +4,7 @@
 <script type="text/javascript" src="lib/d3-tip.min.js"></script>
 <style>
     body {
-            font: 12px sans-serif;
+            font: 14px sans-serif;
         }
     .d3-tip {
             background: black;
@@ -22,15 +22,18 @@
         max-width: 55%;
     }
     #main-graph {
-        padding-top: 40px;
+        padding-top: 90px;
     }
     #text-group {
         position: absolute;
         left: 10;
-        padding-top: 50px;
+        padding-top: 90px;
         width: 70%;
         height: 70%;
         z-index: -1;
+    }
+    .visualization_link {
+        font-size: 25px;
     }
 
 /* add style stuff here like node size and link size*/
@@ -42,8 +45,9 @@
     
 </head>
 <body>
-<div style="position: absolute; left: 60%; top: 15px; height: 20%">
-    <a href="https://jrcairns123.github.io/CommunityGraph/">Visualization for full team selection</a>
+<div style="position: absolute; left: 60%; top: 15px; height: 15%">
+    <a href="https://jrcairns123.github.io/CommunityGraph/" class="visualization_link">
+    Visualization for full team selection</a>
     <br><br>
     <u>Edges</u><br>
     Edge color indicates win rate for champion pair; hover mouse over edge for more information<br>
