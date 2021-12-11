@@ -324,7 +324,7 @@ function draw_graph(region_index,conf_index,winrate_filter,champion_filter) {
                     .attr('width', 25)
                     .attr('height', 100)
                     .attr("class", "legend")
-                    
+
                 // the minimum cannot be >= 50% because of the color logic!
                 if (winrate_range[0] >= 0.5) {
                     var low_winrate_text = "N/A"
@@ -381,20 +381,32 @@ function draw_graph(region_index,conf_index,winrate_filter,champion_filter) {
                     .text(links_sorted[0].source + " => " + links_sorted[0].target + " (" + (links_sorted[0].win_rate*100).toFixed(1) + "%)")
                     .attr("x", 0)
                     .attr("y", 290)
+                }
 
+                svg_legend.append("text")
+                    .text("Champion Pair with Highest Confidence: ")
+                    .attr("x", 0)
+                    .attr("y", 320)
+
+                if (links.length >0){
+                    links_sorted = links.sort((a,b) => b.conf - a.conf)
+                    svg_legend.append("text")
+                    .text(links_sorted[0].source + " => " + links_sorted[0].target + " (" + (links_sorted[0].conf*100).toFixed(1) + "%)")
+                    .attr("x", 0)
+                    .attr("y", 335)
                 }
 
                 svg_legend.append("text")
                     .text("Champion with Highest Popularity: ")
                     .attr("x", 0)
-                    .attr("y", 320)
+                    .attr("y", 365)
 
                 if (nodes.length >0){
                     nodes_sorted = nodes.sort((a,b) => b.popularity - a.popularity)
                     svg_legend.append("text")
                     .text(nodes_sorted[0].champion  + " (" + (nodes_sorted[0].popularity*100).toFixed(1) + "%)")
                     .attr("x", 0)
-                    .attr("y", 335)
+                    .attr("y", 380)
 
                 }
 
