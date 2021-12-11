@@ -324,9 +324,16 @@ function draw_graph(region_index,conf_index,winrate_filter,champion_filter) {
                     .attr('width', 25)
                     .attr('height', 100)
                     .attr("class", "legend")
-                // the minimum is at most 50% because of the color logic!
+                    
+                // the minimum cannot be >= 50% because of the color logic!
+                if (winrate_range[0] >= 0.5) {
+                    var low_winrate_text = "N/A"
+                }
+                else {
+                    var low_winrate_text = String(Math.round(1000*winrate_range[0])/10) + "%"
+                }
                 svg_legend.append("text")
-                    .text("low win rate (" + String(Math.round(1000*Math.min(winrate_range[0],0.5))/10) + "%)")
+                    .text("low win rate (" + low_winrate_text + ")")
                     .attr("x", 40)
                     .attr("y", 80)
 
@@ -335,8 +342,15 @@ function draw_graph(region_index,conf_index,winrate_filter,champion_filter) {
                     .attr("x", 40)
                     .attr("y", 120)
                 
+                // the maximum cannot be <= 50% because of the color logic!
+                if (winrate_range[1] <= 0.5) {
+                    var high_winrate_text = "N/A"
+                }
+                else {
+                    var high_winrate_text = String(Math.round(1000*winrate_range[1])/10) + "%"
+                }
                 svg_legend.append("text")
-                    .text("high win rate (" + String(Math.round(1000*winrate_range[1])/10) + "%)")
+                    .text("high win rate (" + high_winrate_text + ")")
                     .attr("x", 40)
                     .attr("y", 165)
 
