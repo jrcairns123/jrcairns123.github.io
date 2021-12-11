@@ -391,7 +391,7 @@ function draw_graph(region_index,conf_index,winrate_filter,champion_filter) {
                 if (links.length >0){
                     links_sorted = links.sort((a,b) => b.conf - a.conf)
                     svg_legend.append("text")
-                    .text(links_sorted[0].source + " => " + links_sorted[0].target + " (" + (links_sorted[0].conf*100).toFixed(1) + "%)")
+                    .text(links_sorted[0].source + " => " + links_sorted[0].target + " (" + (links_sorted[0].conf).toFixed(1) + "%)")
                     .attr("x", 0)
                     .attr("y", 335)
                 }
